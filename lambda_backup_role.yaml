@@ -1,0 +1,47 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lambda backup role for nonprod services, with access to ec2.
+
+Parameters:
+
+  ServicesAccountPrincipal:
+    Type: String
+    Description: NonProd Services account
+
+Resources:
+
+  LambdaBackupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: role-all-na-s-siac-backup
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                Ref: ServicesAccountPrincipal
+            Action: sts:AssumeRole
+            Condition: {}
+      Policies:
+        - PolicyName: IAM-INLINE-SIAC-BACKUP
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:*
+                Resource: arn:aws:logs:*:*:*
+              - Effect: Allow
+                Action: ec2:Describe*
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ec2:CreateSnapshot
+                  - ec2:DeleteSnapshot
+                  - ec2:ModifySnapshotAttribute
+                  - ec2:ResetSnapshotAttribute
+                  - ec2:CreateTags
+                Resource:
+                  - "*"
