@@ -1,0 +1,71 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: IAM Users for DynamoDB access.
+
+Parameters:
+
+  UserName:
+    Description: "Iam user name."
+    Type: String
+  PortfolioName:
+    Description: "Portfolio Name"
+    Default: ''
+    Type: String
+  AppName:
+    Description: "App Name"
+    Default: ''
+    Type: String
+  KmsKeyArn:
+    Description: "Target dynamodb Kms key encryption"
+    Type: String
+  AllowUpdate:
+    Description: "Allow update to dynamodb"
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "false"
+
+Conditions:
+  EnterpriseAccounts:
+    Fn::Or:
+      - Fn::Equals: [ Ref: 'AWS::AccountId', '2342' ] # nonprod-auto
+      - Fn::Equals: [ Ref: 'AWS::AccountId', '1232' ] # nonprod-semi-auto
+  AllowUpdateItem: !Equals [!Ref AllowUpdate, "true"]
+
+Resources:
+  IamUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Ref UserName
+      Path: /
+      Policies:
+        - PolicyName:
+            Fn::Sub: "${PortfolioName}-${AppName}-DynamoDB-Access"
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:BatchGetItem
+                  - dynamodb:Describe*
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - !If [AllowUpdateItem, "dynamodb:PutItem", !Ref "AWS::NoValue"]
+                  - !If [AllowUpdateItem, "dynamodb:UpdateItem", !Ref "AWS::NoValue"]
+                  - !If [AllowUpdateItem, "dynamodb:DeleteItem", !Ref "AWS::NoValue"]
+                Resource:
+                  - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${PortfolioName}-${AppName}-*"
+              - Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                  - kms:GenerateDataKey*
+                  - kms:ReEncrypt*
+                Resource: !Ref KmsKeyArn
+
+Outputs:
+
+  UserArn:
+    Description: The arn of the IAM user for DynamoDB.
+    Value: !GetAtt IamUser.Arn
